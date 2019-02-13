@@ -1,0 +1,355 @@
+---
+title: "R Notebook"
+author: "Yu Yao"
+date: "2/10/2019"
+output:
+  html_notebook: default
+  html_document: default
+  pdf_document: default
+---
+
+>#**HappyDB **
+
+</center>  
+\
+\
+<font size=3>
+HappyDB is a large scale collection of happy moments on Amazon Mechanical Turk (MTurk) workers. You can read more about it on https://arxiv.org/abs/1801.07746.
+
+So in this notebook, we will process the raw textual data for our data analysis.
+The current R version I'm using and the necessary packages used are listed below. The original data are imported and we did some cleaning of the data. We removed punctuations, extra whitespace, empty words and numbers and converted upper case to lower case. We reduced words to their stems and removed meaningless stop words. We further combined the demographic data with the original data set. We then imported the demographic data to our cleaned data. We will use this cleaned and combined data for our analysis below.  
+
+The four democraphics groups we will study are single parents, married parents, single-non-parents and married non-parents. 
+
+
+```{r load libraries,warning=FALSE, message=FALSE}
+library(tidyverse)
+library(tidytext)
+library(DT)
+library(scales)
+library(wordcloud2)
+library(gridExtra)
+library(ngram)
+library(tm)
+library(wordcloud)
+library(topicmodels)
+library(ggplot2)
+library(dplyr)
+library(gplots)
+library(reshape2)
+library(stringr)
+
+R.Version()$version.string
+```
+
+```{r load data, warning=FALSE, message=FALSE, echo=FALSE}
+#combine data with demo data
+hm_data <- read_csv("../output/processed_moments.csv")
+urlfile<-'https://raw.githubusercontent.com/rit-public/HappyDB/master/happydb/data/demographic.csv'
+demo_data <- read_csv(urlfile)
+```
+
+```{r combining data, warning=FALSE, message=FALSE,echo=FALSE}
+hm_data <- hm_data %>%
+  inner_join(demo_data, by = "wid") %>%
+  select(wid,
+         original_hm,
+         gender, 
+         marital, 
+         parenthood,
+         reflection_period,
+         age, 
+         country, 
+         ground_truth_category, 
+         text) %>%
+  mutate(count = sapply(hm_data$text, wordcount)) %>%
+  filter(gender %in% c("m", "f")) %>%
+  filter(marital %in% c("single", "married")) %>%
+  filter(parenthood %in% c("n", "y")) %>%
+  filter(reflection_period %in% c("24h", "3m")) %>%
+  mutate(reflection_period = fct_recode(reflection_period, 
+                                        months_3 = "3m", hours_24 = "24h"))
+```
+
+```{r, echo=FALSE}
+#substract data sets 
+hm_data.sp <- hm_data[hm_data$marital == "single" & hm_data$parenthood == "y",]
+hm_data.mp <- hm_data[hm_data$marital == "married" & hm_data$parenthood == "y",]
+hm_data.cp <- rbind(hm_data.sp,hm_data.mp)
+
+hm_data.s <- hm_data[hm_data$marital == "single" & hm_data$parenthood == "n",]
+hm_data.m <- hm_data[hm_data$marital == "married" & hm_data$parenthood == "n",]
+hm_data.c <- rbind(hm_data.s,hm_data.m)
+
+hm_data.cp$status <- ifelse(hm_data.cp$marital == "single", "Single with parents", "Married with parents")
+hm_data.c$status <-ifelse(hm_data.c$marital == "single", "Single without parents", "Married without parents")
+alldata <- rbind(hm_data.cp,hm_data.c)
+```
+
+#General Analysis
+##Wordcloud for all data
+
+Words that frequently appeared in MTurk workers' happy moments descriptions are: **friend**, **day**, **time**, **watched**, **family** and **home** etc. Thus, generally people will feel happy about things or events related to their friends, families, watching shows and so on.
+
+```{r warning=FALSE,error=FALSE,echo=FALSE,message=FALSE}
+clean.corpus = VCorpus(VectorSource(hm_data$text))
+tdm.all = TermDocumentMatrix(clean.corpus)
+tdm.tidy = tidy(tdm.all)
+tdm.overall = summarise(group_by(tdm.tidy, term), sum(count))
+
+wordcloud(tdm.overall$term, tdm.overall$`sum(count)`,
+          scale = c(5,0.1),
+          max.words = 300,
+          min.freq = 5,
+          random.order = FALSE,
+          rot.per = 0.3,
+          use.r.layout = T,
+          colors = brewer.pal(8,"Accent"))
+```
+
+
+##Length of Sentences
+
+The length of sentences are stored in the count column of our cleaned dataset and we visualized this through a scatterplot, where each color represents a demographic group.
+
+```{r}
+ggplot(alldata, aes(count, status, color = status)) +
+  geom_point() + 
+  geom_jitter(width = 0.5, height = 0.3) + 
+  ggtitle("Length of Sentences for Four Groups") +
+  labs(x = "Length of Sentences", y = "Demographic Groups")
+
+```
+  
+From the plot, we observe that married parents wrote more words in descripting their experiences. These may be because we have more data on married parents comparing to the other three groups. 
+
+## Word Frequency with Wordcloud.
+
+We are going to examine the frequencies of words for each group and generate a word cloud for each demographic group.   
+  
+## Wordcloud for Single with Parents.
+
+```{r}
+#wordcloud for single with parents. 
+docs.sp <- Corpus(VectorSource(hm_data.sp$text))
+dtm.sp <- TermDocumentMatrix(docs.sp)
+m.sp <- as.matrix(dtm.sp)
+v.sp <- sort(rowSums(m.sp),decreasing=TRUE)
+d.sp <- data.frame(word = names(v.sp),freq=v.sp)
+
+set.seed(123)
+wordcloud(words = d.sp$word, freq = d.sp$freq, 
+          min.freq = 5,
+          max.words=150, 
+          random.order=FALSE, 
+          rot.per=0.35,
+          use.r.layout = T,
+          colors=brewer.pal(8, "Accent"))
+```
+  
+## Wordcloud for Married Parents
+```{r}
+#wordcloud for married parents
+docs.mp <- Corpus(VectorSource(hm_data.mp$text))
+dtm.mp <- TermDocumentMatrix(docs.mp)
+m.mp <- as.matrix(dtm.mp)
+v.mp <- sort(rowSums(m.mp),decreasing=TRUE)
+d.mp <- data.frame(word = names(v.mp),freq=v.mp)
+
+set.seed(123)
+wordcloud(words = d.mp$word, freq = d.mp$freq, min.freq = 1,
+          max.words=100, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Accent"))
+```
+  
+The top three most frequent appearance words are "day", "time" and "friends" for single-parents and are "day", "time" and "son" for married people with parents. The word "friend" drops to the fifth place for married parents. This indicates friends may be a more important aspect of life for single ones. 
+  
+## Wordcould for Single without parents.
+```{r}
+#wordcould for single without parents.
+docs.s <- Corpus(VectorSource(hm_data.s$text))
+dtm.s <- TermDocumentMatrix(docs.s)
+m.s <- as.matrix(dtm.s)
+v.s <- sort(rowSums(m.s),decreasing=TRUE)
+d.s <- data.frame(word = names(v.s),freq=v.s)
+
+set.seed(123)
+wordcloud(words = d.s$word, freq = d.s$freq, min.freq = 1,
+          max.words=100, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+  
+## Wordcloud for Married Non-parents.
+```{r}
+#wordcould for married without parents.
+docs.m <- Corpus(VectorSource(hm_data.m$text))
+dtm.m <- TermDocumentMatrix(docs.m)
+m.m <- as.matrix(dtm.m)
+v.m <- sort(rowSums(m.m),decreasing=TRUE)
+d.m <- data.frame(word = names(v.m),freq=v.m)
+
+set.seed(123)
+wordcloud(words = d.m$word, freq = d.m$freq, min.freq = 1,
+          max.words=100, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+
+```
+  
+Let's take a look at the comparison between single non-parents and married non-parents. The top three most frequent words are the same for both groups. They are "day", "time" and "friends". Besides the obvious finding that non-parents would not have the term "son" or "daughter" on their lists, the words "family", "husband", and "wife" did not make it to the top three. For people who don't have children, even if they are married, they seems to put more emphasize on friends instead of families.
+
+#Sentiment Analysis 
+
+We will measure the sentiments of these happy moments. Although they should all exhibit positive and joyful sentiment indicating by the study, the intensities of the sentiments may vary between groups. 
+
+The "tidytext" package provides use several different lexicons that are dictionary of words with an sentiment assignment. Bing lexicon assigns words to positive and negative categories. The AFINN lexicon assign each word with a score from -5 to 5 where higher score means more positive sentiment. We examine will examine the results using both lexicons. 
+
+Let first use the Bing lexicons.
+
+```{r echo = T, results='hide'}
+
+bing <- function(df){
+  tokens <- data_frame(df$text) %>% unnest_tokens(word, df$text)
+  
+  sentiment <- tokens %>%
+  inner_join(get_sentiments("bing")) %>% # pull out the sentiment words 
+  count(sentiment) %>%   # count the number of positive and negative words
+  spread(sentiment, n, fill = 0) %>% 
+  mutate(sentiment = positive/negative) # number of pos. words - number of neg. words
+  
+  return(sentiment)
+}
+
+bing.sp <- bing(hm_data.sp)$sentiment
+bing.mp <- bing(hm_data.mp)$sentiment
+bing.s <- bing(hm_data.s)$sentiment
+bing.m <- bing(hm_data.m)$sentiment
+
+bing.vec <- data.frame(bing = c(bing.sp, bing.mp,bing.s,bing.m))
+```
+
+```{r echo = T, results='hide',warning=FALSE, message=FALSE}
+
+afinn <- function(df){
+tokens <- data_frame(df$text) %>% unnest_tokens(word, df$text)
+  
+sentiment <- tokens %>%
+  inner_join(get_sentiments("afinn"))   # pull out the sentiment words and asign score
+  
+  return(sentiment)
+}
+
+afinn.sp <- mean(afinn(hm_data.sp)$score)
+afinn.mp <-mean(afinn(hm_data.mp)$score)
+afinn.s <-mean(afinn(hm_data.s)$score)
+afinn.m <-mean(afinn(hm_data.m)$score)
+
+afinn.vec <- data.frame(afinn = c(afinn.sp, afinn.mp,afinn.s,afinn.m))
+```
+
+```{r}
+demo.vec <- c("Single with parents", "Married with parents", "Single without parents", "Married without parents")
+both <- cbind(demo.vec,  bing.vec, afinn.vec)
+colnames(both) <- c('Demographic_Groups', 'bing', 'afinn')
+both
+
+melt.sentiments <- melt(both, id.vars = "Demographic_Groups")
+ggplot(melt.sentiments, aes(variable, value)) +
+  geom_bar(aes(fill = Demographic_Groups), position = "dodge", stat = "identity")
+```
+  
+The sentiment score for bing is calculated by taking the amount of positive words divided by negative words. The result shows that married parents have a slightly higher score than single parents. Parents generally shows more positive sentiments than non-parents.
+  
+The sentiment score with afinn is calculated by taking the mean of scores in each group. Interestingly, The results shows that single parents have the highest score and single non-parents have the lowest score. Comparing the two methods, there aren't a significant different between all demographic groups. We observe that single parents have relatively high scores comparing to others for both methods.  
+
+
+
+# Topic Modeling 
+
+We will extract topics with fitting a LDA model. We tried setting the numbers of topics as three to six. It turns out that setting three topics number make the most sense. The beta matrix tells us the probabilities of each word being generated from each topic.  
+  
+We see that the word "accepted"" is generated from the topic 1 with a probability of 3.040925e-03. We visualized the top ten most frequent words in each topics. According to those words, we manually tag each topic as "Job", "Family",and "Friend".
+
+
+```{r}
+order.data.cp <- hm_data.cp[order(hm_data.cp$wid),]
+order.data.cp$status <- ifelse(order.data.cp$marital == "single", 1, 2)
+order.data.c <- hm_data.c[order(hm_data.c$wid),]
+order.data.c$status <- ifelse(order.data.c$marital == "single", 3, 4)
+
+combine <- rbind(order.data.cp,order.data.c)
+
+combine.data <- combine  %>% 
+                group_by(wid) %>% 
+                summarise(text = paste(text, collapse = " "), status = mean(status))
+
+combine.docs <- Corpus(VectorSource(combine.data$text))
+dtm.combine <- DocumentTermMatrix(combine.docs)
+
+lda <- LDA(dtm.combine, k = 3, method = "GIBBS", control = list(seed = 2))
+```
+
+```{r}
+# the beta matrix 
+topics <- tidy(lda, matrix = "beta")
+head(topics,6)
+```
+
+```{r}
+#Find the top ten words in each topic. 
+top.words <- topics %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+top.words %>%
+  mutate(term = reorder(term, beta)) %>%
+  ggplot(aes(term, beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  coord_flip()
+```
+
+
+```{r}
+topic.prob <- as.data.frame(lda@gamma)
+topics.tag <- c( "Job", "Family","Friend")
+lda.topics <- as.matrix(topics(lda))
+combine.data$topic <- as.vector(lda.topics)
+combine.data$ldatag <- topics.tag[lda.topics]
+colnames(topic.prob) <- topics.tag
+
+combine.data.corpus <- cbind(combine.data,topic.prob)
+```
+
+
+```{r}
+topic.status<-tbl_df(combine.data.corpus)%>%
+              select(status, Job:Friend)%>%
+              group_by(status)%>%
+              summarise_all(funs(mean))
+topic.status=as.data.frame(topic.status)
+
+rownames(topic.status)<-topic.status$status
+
+
+as.mat <- as.matrix(topic.status[,-1])
+rownames(as.mat) <- c('S with P','M with P','S without P','M without P')
+melted_topic <- melt(as.mat)
+ggplot(data = melted_topic, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile()
+```
+  
+We use a heat map to visualized which topic is mentioned more frequently for each demographic group. From the heat map, we observe that "friend" is a topic that are mentioned the most for all four groups. Married parents seems to find more happiness in families than the other three groups.
+
+
+#Conclusion
+
+There aren't significant differences comparing single parents to other demographic groups. 
+We did observe that with this set of samples, married parent seems to use longer sentences in describing their happy moments.
+
+By looking at the frequency of word，friend is an important aspect for single parents than married parents. Family related words appear less frequent for people who are married but don't have children.   
+
+One interesting finding is that single parent shows relatively more positive sentiments than other groups. 
+
+Among the three topics "job", "family" and "friend", "friend" is mentioned the most for all four groups. Married parents seems to talk more about families than the other three groups.   

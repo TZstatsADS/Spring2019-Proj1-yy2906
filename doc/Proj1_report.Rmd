@@ -1,7 +1,7 @@
 ---
 title: "Project1 HappyDB analysis"
 author: "Yu Yao"
-date: "2/10/2019"
+date: "2/11/2019"
 output:
   html_notebook: default
   html_document: default
@@ -10,6 +10,10 @@ output:
 
 >#**HappyDB **
 >#**The differences of happiness between single and married parents **
+
+
+<center>
+![happiness-wallpapers](../figs/happiness-wallpapers.jpg) 
 </center>  
 \
 \
@@ -122,7 +126,7 @@ ggplot(keywords30,aes(fill=keywords30$Keyword)) +
   geom_bar(aes(x=keywords30$Keyword,y=keywords30$Freq),stat='identity',fill="pink")+
   xlab('Top 30 key words')+
   ylab('Frequency')+
-  ggtitle('Frequency of top 30 key words')+
+  ggtitle('Frequency of top key words')+
   theme(axis.text.x = element_text(angle=65, vjust=0.6)) +
   scale_x_discrete(limits= keywords30$Keyword) + 
   guides(fill=FALSE)
@@ -186,51 +190,49 @@ wordcloud(words = d.mp$word, freq = d.mp$freq, min.freq = 1,
   
 The top three most frequent appearance words are "day", "time" and "friends" for single with children, while "day", "time" and "son" for married people with children. "Friend" is the fifth order for married parents. This indicates that friends may be more important for singles than married ones. 
   
-## Top words for Single non-parent.
+## Top words for Reference groups.
 To make things more accurate, we can also have a look at the reference groups.
 
-```{r}
-wordcount <- hm_data.s$text %>% 
+```{r,echo=FALSE}
+wordcount1 <- hm_data.s$text %>% 
   str_trim() %>% 
   lapply(strsplit," ") %>% 
   unlist() %>% 
   table() %>% 
   as.data.frame()
 
-colnames(wordcount) <- c("Keyword","Freq")
+colnames(wordcount1) <- c("Keyword","Freq")
 
-sorted_s <- wordcount %>% dplyr::arrange(desc(Freq))
+sorted_s <- wordcount1 %>% dplyr::arrange(desc(Freq))
 
 keywords20 <- head(sorted_s, n=20)
 
 ggplot(keywords20,aes(fill=keywords30$Keyword)) +
   geom_bar(aes(x=keywords20$Keyword,y=keywords20$Freq),stat='identity',fill="light blue")+
-  xlab('Top 20 key words')+
-  ylab('Frequency')+
-  ggtitle('Top 20 key words for Single non-parent')+
+  labs(title = "Top 20 key words for Single non-parent", x="Words",y = "Frequency")+
   theme(axis.text.x = element_text(angle=65, vjust=0.6)) +
   scale_x_discrete(limits= keywords20$Keyword) + 
   guides(fill=FALSE)
+
 ```
   
-## Top words for Married without children.
-```{r}
-wordcount <- hm_data.m$text %>% 
+```{r,echo=FALSE}
+wordcount2 <- hm_data.m$text %>% 
   str_trim() %>% 
   lapply(strsplit," ") %>% 
   unlist() %>% 
   table() %>% 
   as.data.frame()
 
-colnames(wordcount) <- c("Keyword","Freq")
+colnames(wordcount2) <- c("Keyword","Freq")
 
-sorted_s <- wordcount %>% dplyr::arrange(desc(Freq))
+sorted_m <- wordcount2 %>% dplyr::arrange(desc(Freq))
 
-keywords20 <- head(sorted_s, n=20)
+keywords20 <- head(sorted_m, n=20)
 
 ggplot(keywords20,aes(fill=keywords30$Keyword)) +
   geom_bar(aes(x=keywords20$Keyword,y=keywords20$Freq),stat='identity',fill="light green")+
-  xlab('Top 20 key words')+
+  xlab('Words')+
   ylab('Frequency')+
   ggtitle('Top 20 key words for Married without children')+
   theme(axis.text.x = element_text(angle=65, vjust=0.6)) +
@@ -383,16 +385,15 @@ ggplot(data = melted_topic, aes(x=Var1, y=Var2, fill=value)) +
   geom_tile()
 ```
   
-We use a heat map to visualized which topic is mentioned more frequently for each demographic group. From the heat map, "friend" is a topic that are mentioned the most for all four groups. Married parents seems to find more happiness in families than the other three groups.
+We use a heat map to visualized which topic is mentioned more frequently for each demographic group. From the heat map, "friend" is a topic that are mentioned the most for all four groups. Married people with children find more happiness in families than other groups.
 
 
 #Conclusion
 
-There aren't significant differences comparing single parents to other demographic groups. 
-We did observe that with this set of samples, married parent seems to use longer sentences in describing their happy moments.
+There aren't significant differences between single parents and other groups. 
 
-By looking at the frequency of word，friend is an important aspect for single parents than married parents. Family related words appear less frequent for people who are married but don't have children.   
+Considering the frequency of word，'friend' is more important for single parents than married parents. Family related words appear less for people who are married but don't have children.   
 
-One interesting finding is that single parent shows relatively more positive sentiments than other groups. 
+From the analysis we can find that single parent shows relatively more positive sentiments than other groups. 
 
-Among the three topics "job", "family" and "friend", "friend" is mentioned the most for all four groups. Married parents seems to talk more about families than the other three groups.   
+Among the three topics "job", "family" and "friend", "friend" is mentioned the most for all four groups. Married people with children talk more about families than other groups.   

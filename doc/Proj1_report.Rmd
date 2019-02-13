@@ -137,7 +137,7 @@ The length of sentences are stored in the count column of our cleaned dataset an
 ```{r}
 ggplot(alldata, aes(count, status, color = status)) +
   geom_point() + 
-  geom_jitter(width = 0.5, height = 0.3) + 
+  geom_jitter(width = 0.8, height = 0.3) + 
   ggtitle("Length of Sentences for Four Groups") +
   labs(x = "Length of Sentences", y = "Demographic Groups")
 
@@ -162,7 +162,7 @@ d.sp <- data.frame(word = names(v.sp),freq=v.sp)
 set.seed(123)
 wordcloud(words = d.sp$word, freq = d.sp$freq, 
           min.freq = 5,
-          max.words=150, 
+          max.words=100, 
           random.order=FALSE, 
           rot.per=0.35,
           use.r.layout = T,
@@ -313,7 +313,7 @@ We will extract topics with fitting a LDA model. We tried setting the numbers of
 We see that the word "accepted"" is generated from the topic 1 with a probability of 3.040925e-03. We visualized the top ten most frequent words in each topics. According to those words, we manually tag each topic as "Job", "Family",and "Friend".
 
 
-```{r}
+```{r,echo=FALSE}
 order.data.cp <- hm_data.cp[order(hm_data.cp$wid),]
 order.data.cp$status <- ifelse(order.data.cp$marital == "single", 1, 2)
 order.data.c <- hm_data.c[order(hm_data.c$wid),]
@@ -354,7 +354,7 @@ top.words %>%
 ```
 
 
-```{r}
+```{r,echo=FALSE}
 topic.prob <- as.data.frame(lda@gamma)
 topics.tag <- c( "Job", "Family","Friend")
 lda.topics <- as.matrix(topics(lda))
@@ -377,13 +377,13 @@ rownames(topic.status)<-topic.status$status
 
 
 as.mat <- as.matrix(topic.status[,-1])
-rownames(as.mat) <- c('S with P','M with P','S without P','M without P')
+rownames(as.mat) <- c('S with C','M with C','S without C','M without C')
 melted_topic <- melt(as.mat)
 ggplot(data = melted_topic, aes(x=Var1, y=Var2, fill=value)) + 
   geom_tile()
 ```
   
-We use a heat map to visualized which topic is mentioned more frequently for each demographic group. From the heat map, we observe that "friend" is a topic that are mentioned the most for all four groups. Married parents seems to find more happiness in families than the other three groups.
+We use a heat map to visualized which topic is mentioned more frequently for each demographic group. From the heat map, "friend" is a topic that are mentioned the most for all four groups. Married parents seems to find more happiness in families than the other three groups.
 
 
 #Conclusion

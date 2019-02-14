@@ -115,8 +115,6 @@ png(filename = ".../output/wordcloud.png")
 
 wordcloud2(sorted[1:100,],color = "random-light",size = 0.5,shape = "circle")
 
-dev.off()
-
 ```
 
 Words that frequently appeared in MTurk workers' happy moments descriptions are: **friend**, **day**, **time**, **watched**, **family** and **home** etc. Thus, generally people will feel happy about things or events related to their friends, families, watching shows and so on.
@@ -128,7 +126,7 @@ The length of sentences are stored in the count column of our cleaned dataset an
 ```{r}
 ggplot(alldata, aes(count, status, color = status)) +
   geom_point() + 
-  geom_jitter(width = 0.8, height = 0.3) + 
+  geom_jitter(width = 1.0, height = 0.3) + 
   ggtitle("Length of Sentences for Four Groups") +
   labs(x = "Length of Sentences", y = "Demographic Groups")
 
@@ -153,7 +151,7 @@ d.sp <- data.frame(word = names(v.sp),freq=v.sp)
 set.seed(123)
 wordcloud(words = d.sp$word, freq = d.sp$freq, 
           min.freq = 1,
-          max.words=100, 
+          max.words=40, 
           random.order=FALSE, 
           rot.per=0.35,
           use.r.layout = T,
@@ -171,7 +169,7 @@ d.mp <- data.frame(word = names(v.mp),freq=v.mp)
 
 set.seed(123)
 wordcloud(words = d.mp$word, freq = d.mp$freq, min.freq = 1,
-          max.words=100, random.order=FALSE, rot.per=0.35, 
+          max.words=40, random.order=FALSE, rot.per=0.35, 
           colors=brewer.pal(8, "Accent"))
 ```
   
@@ -231,11 +229,13 @@ The top three most frequent words are the same for both groups-- "day", "time" a
 
 #Sentiment Analysis 
 
-We will measure the sentiments of these happy statments. Although they should all exhibit positive and joyful sentiment indicating by the study, the intensities of the sentiments may vary between groups. 
+We will measure the sentiments of these happy statments.  
 
-The "tidytext" package provides use several different lexicons that are dictionary of words with an sentiment assignment. Bing lexicon assigns words to positive and negative categories. The AFINN lexicon assign each word with a score from -5 to 5 where higher score means more positive sentiment. We will examine the results using both lexicons. 
+The "tidytext" package provides several different lexicons that are dictionary of words with an sentiment assignment. 
+Bing lexicon assigns words to positive and negative categories. 
+AFINN lexicon assign each word with a score from -5 to 5 where higher score means more positive sentiment. We will examine the results using both lexicons. 
 
-First, the Bing lexicon.
+First, we will use the Bing lexicon.
 
 ```{r echo = T, results='hide'}
 
@@ -246,7 +246,7 @@ bing <- function(df){
   inner_join(get_sentiments("bing")) %>% # pull out the sentiment words 
   count(sentiment) %>%   # count the number of positive and negative words
   spread(sentiment, n, fill = 0) %>% 
-  mutate(sentiment = positive/negative) # number of pos. words - number of neg. words
+  mutate(sentiment = positive/negative) 
   
   return(sentiment)
 }
@@ -258,7 +258,7 @@ bing.m <- bing(hm_data.m)$sentiment
 
 bing.vec <- data.frame(bing = c(bing.sp, bing.mp,bing.s,bing.m))
 ```
-
+Secondly, we will use the Afinn lexicon.
 ```{r echo = T, results='hide',warning=FALSE, message=FALSE}
 
 afinn <- function(df){
@@ -289,11 +289,11 @@ ggplot(melt.sentiments, aes(variable, value)) +
   geom_bar(aes(fill = Demographic_Groups), position = "dodge", stat = "identity")
 ```
   
-The sentiment score for bing is calculated by taking the amount of positive words divided by negative words. The result shows that married with children have a slightly higher score than single with children. Parents generally shows more positive sentiments than non-parents.
+The sentiment score of bing lexicon is the amount of positive words divided by negative words. The results show that married with children have a slightly higher score than single with children. Parents generally shows more positive sentiments than non-parents.
   
-The sentiment score with afinn is calculated by taking the mean of scores in each group. Interestingly, The results shows that single parents have the highest score and single non-parents have the lowest score. 
+The sentiment score of afinn lexicon is the mean of scores in each group. Interestingly, The results show that single parents have the highest score and single non-parents have the lowest score. 
 
-Comparing the two methods, there aren't a significant different between all demographic groups. We observe that single parents have relatively high scores comparing to others for both methods.  
+Comparing the two methods, there is not a significant difference between these demographic groups. 
 
 
 

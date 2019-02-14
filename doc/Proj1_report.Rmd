@@ -149,7 +149,7 @@ v.sp <- sort(rowSums(m.sp),decreasing=TRUE)
 d.sp <- data.frame(word = names(v.sp),freq=v.sp)
 
 set.seed(123)
-wordcloud(words = d.sp$word, freq = d.sp$freq, 
+wordcloud(words = d.sp$word, freq = d.sp$freq,
           min.freq = 1,
           max.words=40, 
           random.order=FALSE, 
